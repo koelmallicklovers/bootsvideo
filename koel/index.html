@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Shaka Player Ultra Debug - TV Channel & Logo</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600&display=swap" rel="stylesheet">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.15.14/shaka-player.ui.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.15.14/controls.min.css"/>
+
+<style>
+    body {
+        margin: 0;
+        background: #0b0b0b;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        font-family: Arial, sans-serif;
+    }
+
+    .player-wrapper {
+        width: 92%;
+        max-width: 1280px;
+        aspect-ratio: 16/9;
+        background: #000;
+        border-radius: 14px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    video {
+        width: 100%;
+        height: 100%;
+    }
+
+    /* 📺 CHANNEL WATERMARK LOGO (Image + Text) */
+    .channel-logo {
+        position: absolute;
+        top: 25px;
+        right: 35px;
+        display: flex;
+        align-items: center;
+        gap: 12px; 
+        opacity: 0.4; 
+        pointer-events: none; 
+        z-index: 10;
+    }
+
+    .channel-logo img {
+        height: 46px; 
+        width: 46px;
+        border-radius: 8px; 
+        box-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    }
+
+    .channel-logo-text {
+        font-family: 'Outfit', sans-serif; 
+        font-size: 24px; 
+        font-weight: 600;
+        color: #ffffff;
+        letter-spacing: 1.5px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    }
+
+    /* 🎬 PRIME VIDEO STYLE PG-18 OVERLAY */
+    .pg-rating-overlay {
+        position: absolute;
+        top: 25px;
+        left: 25px;
+        background: rgba(0, 0, 0, 0.85);
+        color: #ffffff;
+        padding: 8px 16px;
+        border-left: 4px solid #ffcc00;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-family: Arial, sans-serif;
+        border-radius: 0 4px 4px 0;
+        opacity: 0; 
+        transition: opacity 1.5s ease-in-out; 
+        pointer-events: none; 
+        z-index: 10;
+    }
+
+    .pg-badge {
+        font-size: 16px;
+        font-weight: bold;
+        background: #ffcc00;
+        color: #000;
+        padding: 4px 8px;
+        border-radius: 3px;
+    }
+
+    .pg-text {
+        font-size: 14px;
+        letter-spacing: 0.5px;
+    }
+
+    /* 🎵 MUSIC CHANNEL INFO OVERLAY */
+    .music-info-overlay {
+        position: absolute;
+        bottom: 20%; 
+        left: 25px;
+        background: linear-gradient(90deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 100%);
+        color: #fff;
+        padding: 20px 30px; 
+        border-left: 5px solid #00ffcc;
+        font-family: Arial, sans-serif;
+        border-radius: 4px;
+        opacity: 0; 
+        transition: opacity 1.5s ease-in-out;
+        pointer-events: none;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        box-shadow: 0px 4px 15px rgba(0,0,0,0.6);
+    }
+
+    .music-info-overlay .song-name {
+        font-size: 26px; 
+        font-weight: bold;
+        color: #ffffff;
+        margin-bottom: 5px;
+        text-transform: uppercase;
+    }
+
+    .music-info-overlay .info-row {
+        font-size: 15px; 
+        letter-spacing: 0.5px;
+        color: #e0e0e0;
+    }
+
+    .music-info-overlay .info-label {
+        color: #00ffcc;
+        font-weight: bold;
+        font-size: 13px; 
+    }
+
+    /* 📝 TRIVIA / SUBTITLE OVERLAY (Cinemascope Black Bar Middle) */
+    .trivia-subtitle-overlay {
+        position: absolute;
+        bottom: 5%; /* ⬆️ Halka sa upar kiya gaya hai cinemascope black bar ke center ke liye */
+        left: 50%;
+        transform: translateX(-50%);
+        background: transparent; 
+        color: #fff;
+        padding: 10px 20px;
+        font-family: Arial, sans-serif;
+        font-size: 18px;
+        line-height: 1.4;
+        opacity: 0; 
+        transition: opacity 1s ease-in-out;
+        pointer-events: none;
+        z-index: 10;
+        text-align: center;
+        width: 100%;
+        max-width: 90%;
+        text-shadow: 2px 2px 4px #000, 0px 0px 8px #000; 
+    }
+
+    /* DEBUG PANEL */
+    #debug {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 320px;
+        height: 100%;
+        background: rgba(0,0,0,0.92);
+        color: #00ffcc;
+        padding: 10px;
+        font-size: 12px;
+        display: none;
+        overflow: auto;
+        border-right: 1px solid #333;
+        box-sizing: border-box;
+        z-index: 999;
+    }
+
+    canvas {
+        width: 100%;
+        height: 100px;
+        background: #111;
+        margin-top: 10px;
+    }
+
+    .bar {
+        width: 100%;
+        height: 6px;
+        background: #222;
+        margin-top: 6px;
+    }
+
+    .fill {
+        height: 100%;
+        width: 0%;
+        transition: width 0.3s ease, background 0.3s ease;
+    }
+
+/* =========================================
+   MOBILE / ANDROID RESPONSIVE FIX
+========================================= */
+@media (max-width:768px){
+    .player-wrapper{width:100%;max-width:100%;border-radius:0;}
+    .channel-logo{top:10px;right:10px;gap:6px;}
+    .channel-logo img{width:24px;height:24px;border-radius:4px;}
+    .channel-logo-text{font-size:12px;letter-spacing:.5px;}
+    .pg-rating-overlay{top:10px;left:10px;padding:5px 10px;gap:6px;}
+    .pg-badge{font-size:10px;padding:2px 6px;}
+    .pg-text{font-size:10px;}
+    .music-info-overlay{left:10px;bottom:18%;max-width:80%;padding:10px 12px;border-left-width:3px;gap:3px;}
+    .music-info-overlay .song-name{font-size:14px;line-height:1.2;margin-bottom:2px;}
+    .music-info-overlay .info-row{font-size:10px;line-height:1.2;}
+    .music-info-overlay .info-label{font-size:10px;}
+    .trivia-subtitle-overlay{bottom:8%;max-width:95%;font-size:12px;line-height:1.35;padding:0 10px;}
+    .shaka-controls-container{font-size:12px !important;}
+    .shaka-play-button-container{transform:scale(.8);}
+}
+@media (max-width:480px){
+    .channel-logo img{width:20px;height:20px;}
+    .channel-logo-text{font-size:10px;}
+    .music-info-overlay{bottom:20%;max-width:85%;padding:8px 10px;}
+    .music-info-overlay .song-name{font-size:12px;}
+    .music-info-overlay .info-row{font-size:9px;}
+    .music-info-overlay .info-label{font-size:9px;}
+    .trivia-subtitle-overlay{bottom:7%;font-size:11px;line-height:1.3;}
+    .pg-text{display:none;}
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="player-wrapper shaka-video-container">
+    <video id="video" autoplay playsinline></video>
+
+    <div class="channel-logo">
+        <img src="https://avatars.githubusercontent.com/u/99903801?s=48&v=4" alt="Logo">
+        <span class="channel-logo-text">Shaka</span>
+    </div>
+
+    <div id="pg-overlay" class="pg-rating-overlay">
+        <span class="pg-badge">18+</span>
+        <span class="pg-text">Adults Only. Contains mature content.</span>
+    </div>
+
+    <div id="music-overlay" class="music-info-overlay">
+        <div class="song-name">100% LOVE : TITLE TRACK</div>
+        <div class="info-row"><span class="info-label">MOVIE:</span> 100% LOVE</div>
+        <div class="info-row"><span class="info-label">YEAR:</span> 2012</div>
+        <div class="info-row"><span class="info-label">SINGER:</span> JEET GANGULI & MONALI THAKUR</div>
+        <div class="info-row"><span class="info-label">LABEL:</span> GRASSROOT ENTERTAINMENT KOLKATA PVT. LTD.</div>
+    </div>
+
+    <div id="trivia-overlay" class="trivia-subtitle-overlay"></div>
+
+    <div id="debug">
+        <h3>ULTRA DEBUG PANEL</h3>
+        <div id="stats"></div>
+
+        <p>Buffer Health</p>
+        <div class="bar"><div id="bufferFill" class="fill"></div></div>
+
+        <p>Bitrate Graph</p>
+        <canvas id="graph"></canvas>
+    </div>
+</div>
+
+<script>
+    let fps = 0;
+    let frames = 0;
+    let last = performance.now();
+    let bitrateHistory = [];
+
+    function fpsCounter(video) {
+        function tick(t) {
+            frames++;
+            if (t - last >= 1000) {
+                fps = frames;
+                frames = 0;
+                last = t;
+            }
+            video.requestVideoFrameCallback(tick);
+        }
+        if ('requestVideoFrameCallback' in video) {
+            video.requestVideoFrameCallback(tick);
+        } else {
+            console.warn("FPS counter unsupported in this browser.");
+        }
+    }
+
+    function drawGraph(ctx, data, w, h) {
+        ctx.clearRect(0, 0, w, h);
+        ctx.beginPath();
+        ctx.strokeStyle = "#00ffcc";
+
+        data.forEach((v, i) => {
+            let x = i * (w / data.length);
+            let y = h - (v / 100); 
+
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+
+        ctx.stroke();
+    }
+
+    // 📝 TRIVIA CONTENT ARRAY
+    const triviaTexts = [
+        "Did you know? The title track of 100% Love (2012) was shot at beautiful and exotic international locations.",
+        "Costume Trivia: The glamorous outfits worn in this song perfectly capture the trendy Western fashion of 2012.",
+        "Movie Cast: The film features Superstar Jeet and the stunning Koel Mallick in the lead roles.",
+        "Fun Fact: Koel Mallick's look in this title track, wearing a red mini western skirt and patent Jimmy Choo knee boots, is widely considered the sexiest look in Tollywood history!"
+    ];
+
+    let currentTriviaIndex = 0;
+
+    function startTriviaCycle() {
+        const triviaOverlay = document.getElementById("trivia-overlay");
+        
+        // Random time between 8 and 16 seconds (8000ms - 16000ms)
+        const randomGap = Math.floor(Math.random() * (16000 - 8000 + 1)) + 8000;
+
+        setTimeout(() => {
+            // Select text (Cycling through the array)
+            triviaOverlay.innerText = triviaTexts[currentTriviaIndex];
+            currentTriviaIndex = (currentTriviaIndex + 1) % triviaTexts.length;
+            
+            // Fade in
+            triviaOverlay.style.opacity = "1";
+
+            // ⏳ Stay for 10 seconds, then fade out
+            setTimeout(() => {
+                triviaOverlay.style.opacity = "0";
+                
+                // Restart cycle for the next trivia
+                startTriviaCycle();
+            }, 10000); 
+
+        }, randomGap);
+    }
+
+    async function init() {
+        shaka.polyfill.installAll();
+
+        const video = document.getElementById("video");
+        const player = new shaka.Player(video);
+
+        const ui = new shaka.ui.Overlay(
+            player,
+            document.querySelector(".player-wrapper"),
+            video
+        );
+
+        ui.configure({
+            controlPanelElements: [
+                "play_pause",
+                "time_and_duration",
+                "spacer",
+                "mute",
+                "volume",
+                "playback_rate",
+                "fullscreen"
+            ]
+        });
+
+        // 🔐 ClearKey Configuration 
+        player.configure({
+            drm: {
+                clearKeys: getClearKey()
+            }
+        });
+
+        try {
+            // ⚠️ Apna MPD stream URL yahan daalein
+            await player.load("stream.mpd");
+            
+            // 🚀 Force Highest Track (ABR Disabled)
+            const allTracks = player.getVariantTracks();
+            if (allTracks.length > 0) {
+                allTracks.sort((a, b) => b.height - a.height); 
+                player.configure({ abr: { enabled: false } });
+                player.selectVariantTrack(allTracks[0], true); 
+            }
+
+        } catch (e) {
+            console.error("Error loading stream:", e);
+        }
+
+        fpsCounter(video);
+
+        // 🎬 TIMING LOGIC (PG, MUSIC & TRIVIA OVERLAYS)
+        const pgOverlay = document.getElementById("pg-overlay");
+        const musicOverlay = document.getElementById("music-overlay");
+        let hasStartedSequence = false;
+
+        video.addEventListener('playing', () => {
+            if (!hasStartedSequence) {
+                hasStartedSequence = true;
+                
+                // 1. Fade In PG Overlay
+                pgOverlay.style.opacity = "1";
+
+                // 2. PG Overlay goes away after 7 seconds
+                setTimeout(() => {
+                    pgOverlay.style.opacity = "0";
+
+                    // 3. Wait 3 seconds, then Fade In Music Overlay
+                    setTimeout(() => {
+                        musicOverlay.style.opacity = "1";
+
+                        // 4. Music Overlay stays for 10 seconds
+                        setTimeout(() => {
+                            musicOverlay.style.opacity = "0";
+
+                            // 5. Music overlay gaya, ab Trivia loop start karo
+                            startTriviaCycle();
+
+                        }, 10000); 
+
+                    }, 3000); 
+
+                }, 7000); 
+            }
+        });
+
+        const debug = document.getElementById("debug");
+        const statsDiv = document.getElementById("stats");
+        const bufferFill = document.getElementById("bufferFill");
+        const canvas = document.getElementById("graph");
+        const ctx = canvas.getContext("2d");
+
+        canvas.width = 300;
+        canvas.height = 100;
+
+        // DEBUG TOGGLE (Press 'D' on keyboard)
+        document.addEventListener("keydown", (e) => {
+            if (e.key.toLowerCase() === "d") {
+                debug.style.display = debug.style.display === "block" ? "none" : "block";
+            }
+        });
+
+        // CUSTOM BUTTON FIX (safe check)
+        try {
+            const controls = ui.getControls();
+            controls.addButton("📊", "Debug", () => {
+                debug.style.display = debug.style.display === "block" ? "none" : "block";
+            });
+        } catch (e) {
+            console.warn("UI button not supported in this build");
+        }
+
+        // LOOP FOR STATS & GRAPH
+        setInterval(() => {
+            const stats = player.getStats();
+            const bitrate = (stats.estimatedBandwidth || 0) / 1000;
+            const speedMbps = (bitrate / 1000).toFixed(2);
+            
+            const res = `${video.videoWidth}x${video.videoHeight}`;
+
+            const buffered = video.buffered.length
+                ? video.buffered.end(video.buffered.length - 1)
+                : 0;
+
+            const bufferPercent = video.duration
+                ? (buffered / video.duration) * 100
+                : 0;
+
+            bufferFill.style.width = Math.min(bufferPercent, 100) + "%";
+            bufferFill.style.background =
+                bufferPercent > 50 ? "#00ff00" :
+                bufferPercent > 20 ? "#ffcc00" : "#ff3300";
+
+            bitrateHistory.push(bitrate);
+            if (bitrateHistory.length > 25) bitrateHistory.shift();
+
+            drawGraph(ctx, bitrateHistory, canvas.width, canvas.height);
+
+            statsDiv.innerHTML = `
+                <b>FPS:</b> ${fps}<br>
+                <b>Bitrate:</b> ${bitrate.toFixed(2)} kbps<br>
+                <b>Speed:</b> ${speedMbps} Mbps<br>
+                <b>Resolution:</b> ${res}<br>
+                <b>Dropped Frames:</b> ${stats.droppedFrames}<br>
+                <b>Decoded:</b> ${stats.decodedFrames}<br>
+                <b>Buffering:</b> ${stats.bufferingTime.toFixed(2)}s<br>
+                <hr>
+                <b>DRM:</b> ClearKey Active
+            `;
+        }, 1000);
+    }
+
+    document.addEventListener("DOMContentLoaded", init);
+
+    /* 🔐 CLEARKEY SEPARATED MODULE */
+    function getClearKey() {
+        return {
+            "b326f895b6a24cc5a4dc70995728059c": "617d8a125a284df48e3c6b1866348a3f"
+        };
+    }
+</script>
+
+</body>
+</html>
